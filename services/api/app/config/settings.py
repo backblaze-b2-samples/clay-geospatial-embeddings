@@ -2,11 +2,21 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    b2_endpoint: str = "https://s3.us-west-004.backblazeb2.com"
-    b2_key_id: str = ""
+    # Backblaze B2 (S3-compatible API). The region drives the S3 endpoint host,
+    # so no endpoint is hardcoded in source: set B2_REGION to your bucket's
+    # region slug (e.g. us-west-004, us-east-005, eu-central-003).
+    b2_region: str = ""
+    b2_application_key_id: str = ""
     b2_application_key: str = ""
     b2_bucket_name: str = ""
-    b2_public_url: str = ""
+    # Optional public base URL for building direct object links. Only needed if
+    # the bucket is public; leave empty for a private bucket.
+    b2_public_url_base: str = ""
+
+    # Local Clay embedding engine. Device autodetect order is CUDA -> Apple MPS
+    # -> CPU, defaulting to CPU. Set to cpu/cuda/mps to force one; "auto" lets
+    # the service pick. MPS falls back to CPU on unsupported ops.
+    clay_device: str = "auto"
 
     api_port: int = 8000
     # Interactive API docs (/docs, /redoc, /openapi.json). On by default for
@@ -70,6 +80,16 @@ class Settings(BaseSettings):
     download_count_file: str = ".data/download_count.json"
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+
+    @property
+    def b2_endpoint(self) -> str:
+        """S3 endpoint URL derived from B2_REGION.
+
+        Kept as a derived value so the region is the single source of truth and
+        no endpoint host is hardcoded in source. Meaningful only once B2_REGION
+        is set — startup validation (main.py) enforces that before any B2 call.
+        """
+        return f"https://s3.{self.b2_region}.backblazeb2.com"
 
     @property
     def cors_origins(self) -> list[str]:

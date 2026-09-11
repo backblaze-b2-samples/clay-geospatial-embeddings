@@ -1,0 +1,23 @@
+# Gated engine dependencies — NOT installed by `pnpm run setup` or CI.
+#
+# The base requirements.txt / requirements.lock keep the default verify path
+# fast and hermetic. This heavier, riskier stack powers the geospatial + ML
+# features (local Clay embeddings, the Imagery Library's GeoTIFF reads and
+# thumbnails, similarity search, and the seed script). Install it explicitly:
+#
+#   services/api/.venv/bin/pip install -r services/api/requirements-ml.txt
+#
+# Every module that needs these imports them lazily, so without this file the
+# app still boots, tests pass, and a job/search records an actionable
+# "engine not installed" state instead of crashing.
+#
+# Headline capability uses Clay's OWN model (never a substitute):
+#   https://github.com/Clay-foundation/model
+# If `claymodel` does not resolve cleanly from PyPI, install from source instead:
+#   pip install "git+https://github.com/Clay-foundation/model"
+claymodel>=1.5
+torch>=2.2,<2.9
+numpy>=1.26,<2.2
+rasterio>=1.3,<2
+usearch>=2.12,<3
+huggingface_hub>=0.24,<1

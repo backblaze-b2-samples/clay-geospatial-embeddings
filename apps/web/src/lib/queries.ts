@@ -8,19 +8,34 @@ import {
 } from "@tanstack/react-query";
 import {
   ApiError,
+  createJob,
   deleteFile,
+  deleteJob,
   getDownloadUrl,
   getFileDetail,
   getFiles,
   getFileStats,
   getHealth,
+  getJob,
+  getJobs,
+  getJobSourcePrefixes,
+  getLibrary,
   getPreviewUrl,
   getUploadActivity,
+  runJob,
+  searchByKey,
+  updateJob,
 } from "@/lib/api-client";
 import type {
   FileMetadata,
   FileMetadataDetail,
-} from "@vibe-coding-starter-kit/shared";
+  ImageryItem,
+  JobCreateRequest,
+  JobRecord,
+  JobUpdateRequest,
+  SearchByKeyRequest,
+  SearchResponse,
+} from "@clay-geospatial-embeddings/shared";
 
 // Single source of truth for query keys. Keep these tightly scoped so that
 // invalidating "files" doesn't blow away unrelated caches, and so an IDE
@@ -35,6 +50,10 @@ export const qk = {
   preview: (key: string) => [...qk.all, "preview", key] as const,
   detail: (key: string) => [...qk.all, "detail", key] as const,
   health: () => [...qk.all, "health"] as const,
+  jobs: () => [...qk.all, "jobs"] as const,
+  job: (id: string) => [...qk.all, "jobs", id] as const,
+  jobSourcePrefixes: () => [...qk.all, "jobs", "source-prefixes"] as const,
+  library: (limit?: number) => [...qk.all, "library", limit ?? 100] as const,
 };
 
 export type Health = Awaited<ReturnType<typeof getHealth>>;
@@ -167,5 +186,91 @@ export function useDeleteFile() {
       dropDeletedFileFromCache(qc, fileKey);
       qc.invalidateQueries({ queryKey: qk.all });
     },
+  });
+}
+
+// --- Embedding Jobs (primary entity) ---------------------------------------
+
+export function useJobs({ enabled = true }: QueryGate = {}) {
+  return useQuery<JobRecord[], ApiError>({
+    queryKey: qk.jobs(),
+    queryFn: getJobs,
+    enabled,
+  });
+}
+
+export function useJob(id: string | undefined, enabled = true) {
+  return useQuery<JobRecord, ApiError>({
+    queryKey: qk.job(id ?? ""),
+    queryFn: () => getJob(id as string),
+    enabled: enabled && !!id,
+  });
+}
+
+export function useJobSourcePrefixes({ enabled = true }: QueryGate = {}) {
+  return useQuery<string[], ApiError>({
+    queryKey: qk.jobSourcePrefixes(),
+    queryFn: getJobSourcePrefixes,
+    enabled,
+  });
+}
+
+export function useCreateJob() {
+  const qc = useQueryClient();
+  return useMutation<JobRecord, ApiError, JobCreateRequest>({
+    mutationFn: (req) => createJob(req),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.jobs() }),
+  });
+}
+
+export function useUpdateJob(id: string) {
+  const qc = useQueryClient();
+  return useMutation<JobRecord, ApiError, JobUpdateRequest>({
+    mutationFn: (req) => updateJob(id, req),
+    onSuccess: (job) => {
+      qc.setQueryData(qk.job(id), job);
+      qc.invalidateQueries({ queryKey: qk.jobs() });
+    },
+  });
+}
+
+export function useDeleteJob() {
+  const qc = useQueryClient();
+  return useMutation<{ deleted: boolean; id: string }, ApiError, string>({
+    mutationFn: (id) => deleteJob(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.jobs() });
+      // A deleted job's embeddings are gone, so any list is stale.
+      qc.invalidateQueries({ queryKey: qk.all });
+    },
+  });
+}
+
+export function useRunJob(id: string) {
+  const qc = useQueryClient();
+  return useMutation<JobRecord, ApiError, void>({
+    mutationFn: () => runJob(id),
+    onSuccess: (job) => {
+      qc.setQueryData(qk.job(id), job);
+      qc.invalidateQueries({ queryKey: qk.jobs() });
+    },
+  });
+}
+
+// --- Imagery Library --------------------------------------------------------
+
+export function useLibrary(limit = 100, { enabled = true }: QueryGate = {}) {
+  return useQuery<ImageryItem[], ApiError>({
+    queryKey: qk.library(limit),
+    queryFn: () => getLibrary(limit),
+    enabled,
+  });
+}
+
+// --- Similarity search ------------------------------------------------------
+
+export function useSearch() {
+  return useMutation<SearchResponse, ApiError, SearchByKeyRequest>({
+    mutationFn: (req) => searchByKey(req),
   });
 }

@@ -49,9 +49,13 @@ const OPENAPI_METHODS = new Set<RouteMethod>([
   "trace",
 ]);
 
-// Prometheus metrics are intentionally scraped server-side, not called by the
-// app shell. Add future backend-only operations here deliberately.
-const SERVER_ONLY_OPERATIONS = new Set(["get /metrics"]);
+// Operations not called through the typed client. /metrics is scraped
+// server-side; /library/thumbnail is referenced directly as an <img> src (it
+// returns a PNG, not JSON). Add future backend-only operations here deliberately.
+const SERVER_ONLY_OPERATIONS = new Set([
+  "get /metrics",
+  "get /library/thumbnail",
+]);
 
 function operationKey(method: string, path: string) {
   return `${method} ${path}`;

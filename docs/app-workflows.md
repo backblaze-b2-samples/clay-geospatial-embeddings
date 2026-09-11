@@ -1,53 +1,59 @@
-<!-- last_verified: 2026-08-06 -->
+<!-- last_verified: 2026-09-11 -->
 # App Workflows
 
 User journeys inside the application.
 
-## Upload Files
+## Create and run an Embedding Job (primary flow)
 
-- User navigates to `/upload`
-- Drops or selects files in the dropzone
-- Client validates file size (max 100MB) and type
-- Files upload **directly from the browser to B2** (a presigned PUT). A determinate progress bar tracks the bytes leaving the browser; once they are all sent the row switches to "Verifying upload..." with an *indeterminate* sweeping bar while the API HEADs and magic-byte-sniffs the stored object. That phase has no percentage to report, and a bar parked at a full 100% read as finished-but-stuck
-- On success: toast notification, green checkmark, and a "View in Files" link through to the browser
-- On failure: red status icon with error message
-- User can clear completed uploads
-- The queue lives in an app-wide provider: navigating to another page keeps the upload running, shows an "Uploading N files" indicator in the header, and keeps the duplicate-upload guard armed
-- Reloading or closing mid-upload asks for confirmation first; if the upload dies anyway, the next load says which file didn't finish
-- See: [File Upload](features/file-upload.md)
+- User navigates to `/jobs` and clicks **New job**
+- The create form uses selectors for finite fields (tile size 256/512, model Clay v1.5, sensor preset, source prefix discovered from `imagery/`) and free text only for the name, with safe-default hints (`e.g. sentinel2-tirana-2024`, `imagery/`, 256, Sentinel-2 RGB)
+- Submitting writes `jobs/<id>.json` to B2 with status `pending` and lands on the job detail page
+- **Run**: the detail page's Run button streams every tile under the source prefix from B2, reads its pixels (rasterio), embeds each with Clay on the autodetected device (CUDA → MPS → CPU), and writes `.npy` embeddings to `embeddings/<id>/`. A CPU run over the seed set takes a minute or two; the page shows an in-progress alert and updates when it finishes
+- **Result**: status becomes `succeeded` with a per-run message (tiles embedded, device used, duration) and an embeddings table, or `failed` with an actionable message (e.g. "install requirements-ml.txt", "no tiles under prefix") — the API process never crashes on a native-ML failure
+- **Edit**: rename or reconfigure while the job is not running
+- **Delete**: removes the job record and only its own `embeddings/<id>/` — imagery is untouched
+- See: [Embedding Jobs](features/embedding-jobs.md), [Clay Embeddings](features/clay-embeddings.md)
 
-## Browse and Manage Files
+## Ingest imagery
 
-- User navigates to `/files`
-- Page loads the 100 most recent objects from the API (sorted most recent first). While it loads, the page says so on screen and escalates the wording if the wait runs long — a full bucket listing measured 2.8s-21s cold
-- If that limit was hit, a notice states how many objects the bucket actually holds — the page never claims to show everything
-- Files displayed in tree view with folders and type-specific icons
-- Folders auto-expand on load until the *majority* of the listed files are reachable without clicking, so the page's own "click a file" instruction is always actionable. Stopping at the first visible file was not enough: one stray top-level object left the other 99 sealed in collapsed folders while the page claimed to show 100
-- Clicking a file row opens its preview; the per-row actions menu (preview / download / delete) is always visible, on every viewport
-- Arriving at `/files?preview=<key>` expands that file's folders and opens its preview directly. This is how the ⌘K palette and the dashboard's recent-uploads rows hand off a *specific* file; the param is consumed on arrival so it doesn't re-fire later
-- **Preview**: opens dialog with image/PDF preview + metadata panel, and the file's Download / Delete actions — the advertised "click a file" path offers everything the row menu does. The loading state holds until the media paints; a failure offers "Open in a new tab". The preview URL is signed with `Content-Disposition: inline` so PDFs render in place
-- **Download**: shows a pending state on the row plus a toast while the presigned URL is fetched, then starts the download via an anchor click (which, unlike a popup, still works if the click's user activation expired during a slow presign). Failures are reported; the click can never silently do nothing
-- **Delete**: the confirmation dialog stays open showing "Deleting..." until the request settles, then the row disappears with the toast (optimistic cache update) and the list reconciles with the server. The dialog is held deliberately — Radix closes on action click by default, which dismissed the only pending state and left the row looking untouched while the delete was still in flight
-- Empty bucket shows "No files found" with upload prompt
+- User navigates to `/upload` (Ingest Imagery)
+- Drops or selects GeoTIFF tiles; the client checks size (max 100 MB) and type (`.tif/.tiff` among others)
+- Tiles upload **directly from the browser to B2** (presigned PUT) under `imagery/`; a progress bar tracks the bytes, then the row switches to "Verifying" while the API HEADs and magic-byte-sniffs the stored object
+- On success the tile appears in the Imagery Library and is embeddable by a job
+- No imagery to hand? `pnpm run seed` generates synthetic license-clean tiles instead
+- See: [Imagery Ingest](features/file-upload.md)
+
+## Browse the Imagery Library
+
+- User navigates to `/library`
+- A scoped gallery lists GeoTIFF tiles under `imagery/` (newest first), each card showing a PNG thumbnail and parsed geospatial metadata (dimensions, band count, CRS, GSD)
+- A tile whose header can't be parsed (or when the geospatial stack isn't installed) still lists, with a warning instead of metadata
+- "Find similar" on a card deep-links to `/search?key=<tile>`
+- See: [Imagery Library](features/imagery-library.md), [GeoTIFF Metadata](features/geotiff-metadata.md)
+
+## Search similar scenes
+
+- User navigates to `/search` (or arrives from a Library card with a preselected tile)
+- Picks a query tile, a sensor preset, and k, then runs the search
+- The API embeds the query with Clay and returns the nearest neighbours from a usearch index built over the embeddings in B2, rendered as a grid with similarity scores
+- If no embeddings exist yet, the result explains to run an Embedding Job first
+- See: [Similarity Search](features/similarity-search.md)
+
+## Browse and manage all files
+
+- User navigates to `/files` — the never-removable full-bucket explorer over every prefix (`imagery/`, `tiles/`, `embeddings/`, `jobs/`)
+- Loads the most recent objects (a full listing measured 2.8s-21s cold; the wait is stated on screen). Tree view with folders, preview, download, delete
 - See: [File Browser](features/file-browser.md)
 
-## View Dashboard
+## View the dashboard
 
 - User navigates to `/` (home)
-- Three parallel API calls load: stats, recent files, upload activity — all served from one shared bucket listing that the API warms at startup
-- While stats load, the page states it in words above the cards rather than showing silent skeletons
-- Stats cards show: total files, storage used, uploads today, total downloads
-- Upload chart shows last 7 days of upload activity as bar chart
-- Recent uploads table shows last 10 files with filename, size, type, date. Each filename links to that file's preview on `/files` — `/files` teaches "click a file to preview it", so the same gesture here has to answer rather than being inert text
-- Empty state: "No files uploaded yet" messages
+- Stat cards (objects in bucket, storage used, ingested today, downloads), a daily ingest-activity chart, and a Recent Jobs table load from `/files/stats`, `/files/stats/activity`, and `/jobs`
+- Empty and error states are explicit — a failed stats fetch never renders "0" as if the bucket were empty
 - See: [Dashboard](features/dashboard.md)
 
-## Change Preferences
+## Change preferences
 
 - User navigates to `/settings`
-- A banner at the top states that the page is mostly a demonstration: only Theme is wired up for real, the rest showcases what a settings page can look like when you adapt the kit
-- **Theme** (real): editing it and saving applies it immediately and persists it (`next-themes`), and the header's theme toggle drives the same state
-- **Profile and preference fields** (demo): Display name, Bio, Default file view (Tree/List/Grid), Email me on every upload, Warn me when approaching quota + threshold. Each is labelled "Demo field", persists to `localStorage` only, and drives no behaviour — there is no account system, mailer, quota banner, activity log, or List/Grid view behind them yet
-- Saving reports honestly: a success toast that separates the real theme change from the locally-stored demo values, or a warning toast if the browser blocked storage (theme still changes). It never claims a save that did not happen — the original page toasted "Settings saved" for fields that changed nothing
-- Danger Zone actions are a demo — no real delete runs
+- A banner states the page is mostly a demonstration: only Theme is wired for real; the rest showcases the form patterns this app reuses for the Embedding Job forms
 - See: [Settings](features/settings.md)

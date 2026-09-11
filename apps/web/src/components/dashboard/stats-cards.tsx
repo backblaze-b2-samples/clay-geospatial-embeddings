@@ -24,10 +24,10 @@ export function StatsCards() {
   }
 
   const cards = [
-    { title: "Total Files", value: stats?.total_files ?? 0, icon: FileIcon },
+    { title: "Objects in Bucket", value: stats?.total_files ?? 0, icon: FileIcon },
     { title: "Storage Used", value: stats?.total_size_human ?? "0 B", icon: HardDrive },
-    { title: "Uploads Today", value: stats?.uploads_today ?? 0, icon: Upload },
-    { title: "Total Downloads", value: stats?.total_downloads ?? 0, icon: Download },
+    { title: "Ingested Today", value: stats?.uploads_today ?? 0, icon: Upload },
+    { title: "Downloads", value: stats?.total_downloads ?? 0, icon: Download },
   ];
 
   return (

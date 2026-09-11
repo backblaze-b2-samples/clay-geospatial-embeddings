@@ -71,3 +71,92 @@ export interface UploadStats {
   uploads_today: number;
   total_downloads: number;
 }
+
+// --- Embedding Jobs (primary entity) ---------------------------------------
+
+export type TileSize = 256 | 512;
+export type ModelName = "clay-v1.5";
+export type SensorPreset = "sentinel-2-rgb" | "sentinel-2-l2a" | "naip-rgb";
+export type JobStatus = "pending" | "running" | "succeeded" | "failed";
+
+export interface JobConfig {
+  source_prefix: string;
+  tile_size: TileSize;
+  model: ModelName;
+  sensor: SensorPreset;
+}
+
+export interface EmbeddingRef {
+  tile_key: string;
+  embedding_key: string;
+  dims: number;
+}
+
+export interface JobRecord {
+  id: string;
+  name: string;
+  status: JobStatus;
+  config: JobConfig;
+  created_at: string;
+  updated_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+  device: string | null;
+  message: string | null;
+  tiles_total: number;
+  tiles_embedded: number;
+  duration_seconds: number | null;
+  embeddings: EmbeddingRef[];
+}
+
+export interface JobCreateRequest {
+  name: string;
+  config: JobConfig;
+}
+
+export interface JobUpdateRequest {
+  name?: string;
+  config?: JobConfig;
+}
+
+// --- Imagery Library --------------------------------------------------------
+
+export interface GeoTiffMetadata {
+  width: number | null;
+  height: number | null;
+  band_count: number | null;
+  crs: string | null;
+  bounds: number[] | null;
+  gsd: number | null;
+  dtype: string | null;
+}
+
+export interface ImageryItem {
+  key: string;
+  filename: string;
+  size_bytes: number;
+  size_human: string;
+  uploaded_at: string;
+  metadata: GeoTiffMetadata | null;
+  metadata_warning: string | null;
+}
+
+// --- Similarity search ------------------------------------------------------
+
+export interface SearchByKeyRequest {
+  query_key: string;
+  k: number;
+  sensor: SensorPreset;
+}
+
+export interface SearchHit {
+  tile_key: string;
+  embedding_key: string;
+  score: number;
+}
+
+export interface SearchResponse {
+  query_key: string;
+  index_size: number;
+  hits: SearchHit[];
+}

@@ -30,6 +30,7 @@ const BACKEND_ALLOWED_TYPES = [
   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   "video/quicktime",
   "video/webm",
+  "image/tiff",
 ];
 
 describe("ACCEPTED_FILE_TYPES", () => {

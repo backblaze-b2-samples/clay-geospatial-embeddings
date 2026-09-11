@@ -6,20 +6,23 @@ product
 
 ## Users
 
-AI coding agents and "vibe coders" (developers who lean on AI to move fast) who clone
-this kit as the foundation for a new full-stack app. Their context: they want to skip
-the boilerplate loop (dashboard, upload, file browser, cloud storage wiring) and go
-straight to building their app's unique features. They read the repo, keep the shared
-scaffolding, and rebrand + rewrite the dashboard for their own use case.
+Geospatial AI teams — climate-tech, agricultural analytics, and government
+remote-sensing engineers — plus the AI coding agents that build alongside them. Their
+context: they hold large satellite/aerial imagery archives and need rich semantic
+embeddings for change detection, land-cover classification, and scene retrieval,
+without standing up a bespoke ML platform or paying per-call for a hosted embedding
+API. They want the model to run on their own hardware and every artifact to live in
+storage they already trust.
 
 ## Product Purpose
 
-An engineering-grade full-stack starter kit (Next.js 16 + React 19 + Tailwind v4 +
-shadcn/ui frontend, FastAPI backend) with Backblaze B2 cloud storage integrated out of
-the box. It ships a dashboard, drag-and-drop upload, and a file browser so builders
-start from a working app, not a blank page. Success = a builder can clone it, run it,
-rebrand it via one config file, and trust every screen enough to build on top without
-first fixing it.
+A full-stack sample (Next.js 16 + React 19 + Tailwind v4 + shadcn/ui frontend, FastAPI
+backend) that runs the **Clay geospatial foundation model locally** over imagery stored
+in Backblaze B2, writes embedding tensors back to B2, and offers k-NN scene-similarity
+search — with **B2 credentials only, no second API key**. B2 is the storage backbone
+end to end: raw imagery, normalized tiles, embeddings, and job records. Success = a team
+can point it at a bucket, embed an archive with Clay on CPU/GPU/MPS, and retrieve
+similar scenes, trusting every screen and the on-device pipeline enough to build on.
 
 ## Maturity and Support Boundary
 

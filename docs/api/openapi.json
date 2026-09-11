@@ -19,6 +19,30 @@
         "title": "DailyUploadCount",
         "type": "object"
       },
+      "EmbeddingRef": {
+        "description": "One embedding artifact produced by a run.",
+        "properties": {
+          "dims": {
+            "title": "Dims",
+            "type": "integer"
+          },
+          "embedding_key": {
+            "title": "Embedding Key",
+            "type": "string"
+          },
+          "tile_key": {
+            "title": "Tile Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tile_key",
+          "embedding_key",
+          "dims"
+        ],
+        "title": "EmbeddingRef",
+        "type": "object"
+      },
       "FileMetadata": {
         "properties": {
           "content_type": {
@@ -294,6 +318,93 @@
         "title": "FileUploadResponse",
         "type": "object"
       },
+      "GeoTiffMetadata": {
+        "description": "Geospatial header fields read from a GeoTIFF (rasterio).\n\nEvery field is optional: a tile whose header cannot be parsed (or when the\ngeospatial stack is not installed) still lists, with these left null and a\nwarning on the item.",
+        "properties": {
+          "band_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Band Count"
+          },
+          "bounds": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bounds"
+          },
+          "crs": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crs"
+          },
+          "dtype": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dtype"
+          },
+          "gsd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gsd"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width"
+          }
+        },
+        "title": "GeoTiffMetadata",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -305,6 +416,266 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "ImageryItem": {
+        "description": "One tile in the Imagery Library.",
+        "properties": {
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GeoTiffMetadata"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "metadata_warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata Warning"
+          },
+          "size_bytes": {
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "size_human": {
+            "title": "Size Human",
+            "type": "string"
+          },
+          "uploaded_at": {
+            "format": "date-time",
+            "title": "Uploaded At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "filename",
+          "size_bytes",
+          "size_human",
+          "uploaded_at"
+        ],
+        "title": "ImageryItem",
+        "type": "object"
+      },
+      "JobConfig": {
+        "description": "Everything needed to reproduce an embedding run.",
+        "properties": {
+          "model": {
+            "const": "clay-v1.5",
+            "default": "clay-v1.5",
+            "title": "Model",
+            "type": "string"
+          },
+          "sensor": {
+            "default": "sentinel-2-rgb",
+            "enum": [
+              "sentinel-2-rgb",
+              "sentinel-2-l2a",
+              "naip-rgb"
+            ],
+            "title": "Sensor",
+            "type": "string"
+          },
+          "source_prefix": {
+            "default": "imagery/",
+            "title": "Source Prefix",
+            "type": "string"
+          },
+          "tile_size": {
+            "default": 256,
+            "enum": [
+              256,
+              512
+            ],
+            "title": "Tile Size",
+            "type": "integer"
+          }
+        },
+        "title": "JobConfig",
+        "type": "object"
+      },
+      "JobCreateRequest": {
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/JobConfig"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "JobCreateRequest",
+        "type": "object"
+      },
+      "JobRecord": {
+        "description": "A full job record as persisted in B2.",
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/JobConfig"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "device": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device"
+          },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Seconds"
+          },
+          "embeddings": {
+            "items": {
+              "$ref": "#/components/schemas/EmbeddingRef"
+            },
+            "title": "Embeddings",
+            "type": "array"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "default": "pending",
+            "enum": [
+              "pending",
+              "running",
+              "succeeded",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "tiles_embedded": {
+            "default": 0,
+            "title": "Tiles Embedded",
+            "type": "integer"
+          },
+          "tiles_total": {
+            "default": 0,
+            "title": "Tiles Total",
+            "type": "integer"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "JobRecord",
+        "type": "object"
+      },
+      "JobUpdateRequest": {
+        "description": "Rename / reconfigure a job while it is not running.\n\nAll fields optional \u2014 a PATCH updates only what it carries.",
+        "properties": {
+          "config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "title": "JobUpdateRequest",
         "type": "object"
       },
       "PresignUploadRequest": {
@@ -371,6 +742,85 @@
           "expires_in"
         ],
         "title": "PresignUploadResponse",
+        "type": "object"
+      },
+      "SearchByKeyRequest": {
+        "description": "Search for scenes similar to an existing imagery tile in B2.",
+        "properties": {
+          "k": {
+            "default": 6,
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "K",
+            "type": "integer"
+          },
+          "query_key": {
+            "title": "Query Key",
+            "type": "string"
+          },
+          "sensor": {
+            "default": "sentinel-2-rgb",
+            "enum": [
+              "sentinel-2-rgb",
+              "sentinel-2-l2a",
+              "naip-rgb"
+            ],
+            "title": "Sensor",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query_key"
+        ],
+        "title": "SearchByKeyRequest",
+        "type": "object"
+      },
+      "SearchHit": {
+        "properties": {
+          "embedding_key": {
+            "title": "Embedding Key",
+            "type": "string"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "tile_key": {
+            "title": "Tile Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tile_key",
+          "embedding_key",
+          "score"
+        ],
+        "title": "SearchHit",
+        "type": "object"
+      },
+      "SearchResponse": {
+        "properties": {
+          "hits": {
+            "items": {
+              "$ref": "#/components/schemas/SearchHit"
+            },
+            "title": "Hits",
+            "type": "array"
+          },
+          "index_size": {
+            "title": "Index Size",
+            "type": "integer"
+          },
+          "query_key": {
+            "title": "Query Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query_key",
+          "index_size"
+        ],
+        "title": "SearchResponse",
         "type": "object"
       },
       "UploadStats": {
@@ -463,8 +913,8 @@
     }
   },
   "info": {
-    "description": "Local API for the Vibe Coding Starter Kit template, providing file upload and management backed by Backblaze B2. This contract documents the template's local API, not a hosted public endpoint.",
-    "title": "Vibe Coding Starter Kit API",
+    "description": "Local API for Clay Geospatial Embeddings: run the Clay foundation model on satellite/aerial imagery tiles stored in Backblaze B2, write embedding tensors back to B2, and run k-NN similarity search over the archive. This contract documents the app's local API, not a hosted public endpoint.",
+    "title": "Clay Geospatial Embeddings API",
     "version": "0.1.0"
   },
   "openapi": "3.1.0",
@@ -980,6 +1430,367 @@
         ]
       }
     },
+    "/jobs": {
+      "get": {
+        "operationId": "list_jobs_endpoint_jobs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/JobRecord"
+                  },
+                  "title": "Response List Jobs Endpoint Jobs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Jobs Endpoint",
+        "tags": [
+          "jobs"
+        ]
+      },
+      "post": {
+        "operationId": "create_job_endpoint_jobs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Job Endpoint",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/jobs/source-prefixes": {
+      "get": {
+        "description": "Discovered sub-prefixes under imagery/ for the create-form selector.",
+        "operationId": "source_prefixes_endpoint_jobs_source_prefixes_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Response Source Prefixes Endpoint Jobs Source Prefixes Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Source Prefixes Endpoint",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/jobs/{job_id}": {
+      "delete": {
+        "operationId": "delete_job_endpoint_jobs__job_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Job Endpoint",
+        "tags": [
+          "jobs"
+        ]
+      },
+      "get": {
+        "operationId": "get_job_endpoint_jobs__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Job Endpoint",
+        "tags": [
+          "jobs"
+        ]
+      },
+      "patch": {
+        "operationId": "update_job_endpoint_jobs__job_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Job Endpoint",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/jobs/{job_id}/run": {
+      "post": {
+        "description": "Run the embedding pipeline. Returns the final job record.\n\nA run may take a while on CPU; the browser shows a pending state until it\nresolves. Engine failures are captured in the returned record (status\n`failed`), not raised as 500s.",
+        "operationId": "run_job_endpoint_jobs__job_id__run_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Job Endpoint",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/library": {
+      "get": {
+        "operationId": "list_library_endpoint_library_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ImageryItem"
+                  },
+                  "title": "Response List Library Endpoint Library Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Library Endpoint",
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/library/thumbnail": {
+      "get": {
+        "description": "PNG thumbnail for one imagery tile (referenced directly by <img>).",
+        "operationId": "library_thumbnail_endpoint_library_thumbnail_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "default": 256,
+              "title": "Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Library Thumbnail Endpoint",
+        "tags": [
+          "library"
+        ]
+      }
+    },
     "/metrics": {
       "get": {
         "operationId": "metrics_metrics_get",
@@ -996,6 +1807,48 @@
         "summary": "Metrics",
         "tags": [
           "metrics"
+        ]
+      }
+    },
+    "/search": {
+      "post": {
+        "description": "Embed the query tile with Clay and return its nearest neighbours.\n\nBlocking (model + index) work runs in the threadpool. A missing engine or an\nempty archive answers with an actionable 4xx/5xx, never a bare 500.",
+        "operationId": "search_endpoint_search_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchByKeyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search Endpoint",
+        "tags": [
+          "search"
         ]
       }
     },

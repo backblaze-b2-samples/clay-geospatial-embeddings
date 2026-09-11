@@ -3,9 +3,15 @@ import type {
   FileMetadata,
   FileMetadataDetail,
   FileUploadResponse,
+  ImageryItem,
+  JobCreateRequest,
+  JobRecord,
+  JobUpdateRequest,
   PresignUploadResponse,
+  SearchByKeyRequest,
+  SearchResponse,
   UploadStats,
-} from "@vibe-coding-starter-kit/shared";
+} from "@clay-geospatial-embeddings/shared";
 
 // Single-origin deploys (Vercel `services`: one project serving web + API) put
 // the API under /api on the same origin, so no NEXT_PUBLIC_API_URL is needed —
@@ -17,7 +23,7 @@ export const API_BASE =
   (process.env.NODE_ENV === "production" ? "/api" : "http://localhost:8000");
 
 type ApiClientRoute = {
-  method: "delete" | "get" | "post";
+  method: "delete" | "get" | "patch" | "post";
   path: string;
 };
 
@@ -41,6 +47,17 @@ export const API_CLIENT_ROUTES = {
   // payload ceiling no longer caps upload size.
   uploadPresign: { method: "post", path: "/upload/presign" },
   uploadVerify: { method: "post", path: "/upload/verify" },
+  // Embedding Jobs (primary entity) — full CRUD + run.
+  jobs: { method: "get", path: "/jobs" },
+  jobCreate: { method: "post", path: "/jobs" },
+  jobSourcePrefixes: { method: "get", path: "/jobs/source-prefixes" },
+  job: { method: "get", path: "/jobs/{job_id}" },
+  jobUpdate: { method: "patch", path: "/jobs/{job_id}" },
+  jobDelete: { method: "delete", path: "/jobs/{job_id}" },
+  jobRun: { method: "post", path: "/jobs/{job_id}/run" },
+  // Imagery Library + similarity search.
+  library: { method: "get", path: "/library" },
+  search: { method: "post", path: "/search" },
 } as const satisfies Record<string, ApiClientRoute>;
 
 /** Typed API error with HTTP status code for caller-side branching. */
@@ -349,5 +366,75 @@ function putFileToStorage(
       xhr.setRequestHeader(name, value);
     }
     xhr.send(file);
+  });
+}
+
+// --- Embedding Jobs ---------------------------------------------------------
+
+function jobPath(template: string, jobId: string): string {
+  if (jobId.length === 0) {
+    throw new ApiError("Job id is required", 400);
+  }
+  return template.replace("{job_id}", encodeURIComponent(jobId));
+}
+
+export async function getJobs() {
+  return apiFetch<JobRecord[]>(API_CLIENT_ROUTES.jobs.path);
+}
+
+export async function getJobSourcePrefixes() {
+  return apiFetch<string[]>(API_CLIENT_ROUTES.jobSourcePrefixes.path);
+}
+
+export async function getJob(jobId: string) {
+  return apiFetch<JobRecord>(jobPath(API_CLIENT_ROUTES.job.path, jobId));
+}
+
+export async function createJob(req: JobCreateRequest) {
+  return apiFetch<JobRecord>(API_CLIENT_ROUTES.jobCreate.path, {
+    method: API_CLIENT_ROUTES.jobCreate.method.toUpperCase(),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  });
+}
+
+export async function updateJob(jobId: string, req: JobUpdateRequest) {
+  return apiFetch<JobRecord>(jobPath(API_CLIENT_ROUTES.jobUpdate.path, jobId), {
+    method: API_CLIENT_ROUTES.jobUpdate.method.toUpperCase(),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  });
+}
+
+export async function deleteJob(jobId: string) {
+  return apiFetch<{ deleted: boolean; id: string }>(
+    jobPath(API_CLIENT_ROUTES.jobDelete.path, jobId),
+    { method: API_CLIENT_ROUTES.jobDelete.method.toUpperCase() }
+  );
+}
+
+export async function runJob(jobId: string) {
+  return apiFetch<JobRecord>(jobPath(API_CLIENT_ROUTES.jobRun.path, jobId), {
+    method: API_CLIENT_ROUTES.jobRun.method.toUpperCase(),
+  });
+}
+
+// --- Imagery Library + search ----------------------------------------------
+
+export async function getLibrary(limit = 100) {
+  return apiFetch<ImageryItem[]>(`${API_CLIENT_ROUTES.library.path}?limit=${limit}`);
+}
+
+/** Direct URL for a tile's PNG thumbnail (used as an <img> src, not fetched). */
+export function thumbnailUrl(key: string, size = 256): string {
+  const params = new URLSearchParams({ key, size: String(size) });
+  return `${API_BASE}/library/thumbnail?${params.toString()}`;
+}
+
+export async function searchByKey(req: SearchByKeyRequest) {
+  return apiFetch<SearchResponse>(API_CLIENT_ROUTES.search.path, {
+    method: API_CLIENT_ROUTES.search.method.toUpperCase(),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
   });
 }

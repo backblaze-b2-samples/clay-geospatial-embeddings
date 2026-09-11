@@ -4,14 +4,17 @@
 ## Components
 
 - **apps/web/** — Next.js 16 frontend (App Router, Tailwind v4, shadcn/ui)
-  - Dashboard with stats, upload chart, recent uploads
-  - File upload with drag-and-drop, progress tracking
-  - File browser with preview, download, delete
+  - Dashboard with archive stats, ingest activity, recent embedding jobs
+  - Embedding Jobs (primary entity): create / run / edit / delete
+  - Imagery Library (scoped GeoTIFF gallery over `imagery/`)
+  - Similarity Search over embeddings
+  - Imagery ingest (direct-to-B2 upload) and full-bucket file browser
   - Dark mode via `next-themes`
 - **services/api/** — FastAPI backend (layered architecture)
-  - REST API for file upload, listing, deletion
+  - REST API for jobs, imagery library, search, upload, listing, deletion
   - B2 S3 integration via boto3
-  - File metadata extraction (images, PDFs)
+  - Local Clay foundation-model embedding engine (`app/service/clay/`)
+  - GeoTIFF metadata + pixel reads and thumbnails (rasterio)
   - Health check endpoint with B2 connectivity verification
   - Structured JSON logging with request tracing
   - Prometheus-format metrics endpoint
@@ -49,11 +52,14 @@ runtime/   FastAPI routes — calls service, never repo directly
 services/api/
   main.py                  App entrypoint, middleware, router registration
   app/
-    types/                 Pydantic models (FileMetadata, UploadStats, etc.)
-    config/                Settings loaded from environment
-    repo/                  B2 S3 client (data access layer)
-    service/               Business logic (upload, files, metadata)
-    runtime/               FastAPI route handlers
+    types/                 Pydantic models (FileMetadata, JobRecord, ImageryItem, SearchResponse, ...)
+    config/                Settings + B2 key prefixes
+    repo/                  B2 S3 client + job_store / embeddings / vector_index (data access)
+    service/               Business logic (jobs, clay/, geotiff, library, search, upload, files)
+    runtime/               FastAPI route handlers (jobs, library, search, files, upload, health)
+  requirements.txt/.lock   Base deps (installed by setup/CI)
+  requirements-ml.txt      Gated engine deps (torch, claymodel, rasterio, usearch — NOT in setup/CI)
+  scripts/seed_imagery.py  Synthetic GeoTIFF seed generator
   tests/                   pytest tests (structural + integration)
 ```
 
@@ -92,10 +98,12 @@ External provisioning and deployment remain explicit user-approved actions.
 
 ## Data Stores
 
-- **Backblaze B2** — object storage (S3-compatible API)
-  - All uploaded files stored in a single bucket
-  - File listing and metadata via S3 `list_objects_v2` / `head_object`
-  - No application database — B2 is the sole data store
+- **Backblaze B2** — object storage (S3-compatible API), the sole data store
+  - `imagery/` — raw/ingested GeoTIFF tiles
+  - `tiles/` — normalized tile cache (reserved)
+  - `embeddings/<job_id>/<hash>.npy` — Clay embedding tensors
+  - `jobs/<id>.json` — Embedding Job records (no database)
+  - Region-derived endpoint (`https://s3.<B2_REGION>.backblazeb2.com`); no region hardcoded in source
 
 ## External Services
 
@@ -111,10 +119,11 @@ See [docs/SECURITY.md](docs/SECURITY.md) for full security documentation.
 
 ## Data Flows
 
-- **Upload**: Browser -> `POST /upload/presign` (API validates the declared file + signs a PUT) -> Browser PUTs bytes **directly to B2** -> `POST /upload/verify` (API HEADs + Range-sniffs the stored object) -> response
-- **List**: Browser -> `GET /files` -> service calls repo -> returns file list
-- **Download**: Browser -> `GET /files/{key}/download` -> service validates key -> repo generates presigned URL -> browser downloads
-- **Delete**: Browser -> `DELETE /files/{key}` -> service validates key -> repo deletes from B2
+- **Ingest**: Browser -> `POST /upload/presign` (validates + signs a PUT) -> Browser PUTs bytes **directly to B2** under `imagery/` -> `POST /upload/verify` -> response
+- **Embed (run a job)**: Browser -> `POST /jobs/{id}/run` -> service lists tiles under the source prefix, `get_object` each, reads pixels (rasterio), runs Clay on the autodetected device, writes `.npy` to `embeddings/<id>/`, updates the job record
+- **Search**: Browser -> `POST /search` -> service embeds the query tile with Clay -> `repo/vector_index` builds a usearch index over `embeddings/` from B2 -> returns ranked hits
+- **List / Library**: Browser -> `GET /files` or `GET /library` -> service calls repo -> returns file list / imagery items with metadata
+- **Delete**: Browser -> `DELETE /jobs/{id}` -> scoped delete of `embeddings/<id>/` + `jobs/<id>.json`; `DELETE /files-by-key?key=` for arbitrary objects
 
 ## Observability
 
@@ -148,12 +157,31 @@ silently drift from FastAPI. `GET /metrics` is intentionally server-only.
 - Frontend API client: `apps/web/src/lib/api-client.ts`
 - Shared TypeScript types: `packages/shared/src/types.ts`
 
+## Local ML engine
+
+The headline capability runs Clay's own model (`app/service/clay/`). Its heavy,
+native dependency closure (torch, `claymodel`, rasterio, usearch) is **gated in
+`requirements-ml.txt`** and excluded from `pnpm run setup` and CI, so the base
+verify path stays fast and hermetic. Every engine module imports those libraries
+lazily; without them the app still boots, tests pass, and a run/search records an
+actionable "engine not installed" state instead of a 500.
+
+Device selection is runtime autodetect **CUDA → Apple MPS → CPU, defaulting to
+CPU** (`service/clay/engine.py::select_device`). `PYTORCH_ENABLE_MPS_FALLBACK=1`
+is set before torch imports, and an MPS/CUDA embed that still fails is retried on
+CPU (`service/jobs.py`), so partial MPS op coverage never blocks a run. Override
+with `CLAY_DEVICE`.
+
 ## Core Features
 
-- [File Upload](docs/features/file-upload.md)
+- [Embedding Jobs](docs/features/embedding-jobs.md)
+- [Clay Embeddings](docs/features/clay-embeddings.md)
+- [Imagery Library](docs/features/imagery-library.md)
+- [Similarity Search](docs/features/similarity-search.md)
+- [GeoTIFF Metadata](docs/features/geotiff-metadata.md)
+- [Imagery Ingest](docs/features/file-upload.md)
 - [File Browser](docs/features/file-browser.md)
 - [Dashboard](docs/features/dashboard.md)
-- [Metadata Extraction](docs/features/metadata-extraction.md)
 
 ## References
 

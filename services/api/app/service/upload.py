@@ -46,6 +46,9 @@ ALLOWED_TYPES = {
     # Additional video containers (mp4 already above).
     "video/quicktime",
     "video/webm",
+    # GeoTIFF imagery tiles — the primary ingest format for this app. Uploaded
+    # tiles land under imagery/ and appear in the Imagery Library.
+    "image/tiff",
 }
 
 _DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -77,6 +80,7 @@ MIME_EXTENSION_MAP: dict[str, set[str]] = {
     _PPTX: {"pptx"},
     "video/quicktime": {"mov"},
     "video/webm": {"webm"},
+    "image/tiff": {"tif", "tiff"},
 }
 
 # Magic-byte signatures for the binary types we accept. The client-declared
@@ -100,6 +104,8 @@ _CONTENT_SIGNATURES: dict[str, Callable[[bytes], bool]] = {
     "audio/mpeg": lambda d: d[:3] == b"ID3"
     or (len(d) >= 2 and d[0] == 0xFF and (d[1] & 0xE0) == 0xE0),
     "audio/wav": lambda d: d[:4] == b"RIFF" and d[8:12] == b"WAVE",
+    # TIFF/GeoTIFF: little-endian ("II*\\0") or big-endian ("MM\\0*") header.
+    "image/tiff": lambda d: d[:4] in (b"II\x2a\x00", b"MM\x00\x2a"),
 }
 
 
@@ -161,9 +167,10 @@ class UploadError(Exception):
         super().__init__(detail)
 
 
-# Every object the app writes lives under this prefix; the API mints the key so
-# the client never chooses where its bytes land.
-UPLOAD_PREFIX = "uploads/"
+# Uploaded imagery tiles land under this prefix; the API mints the key so the
+# client never chooses where its bytes land. Scoped to imagery/ so ingested
+# GeoTIFFs flow straight into the Imagery Library and are embeddable by a job.
+UPLOAD_PREFIX = "imagery/"
 # Leading bytes fetched for the post-upload sniff. The deepest signature check
 # reads data[8:12]; 512 leaves generous headroom for any future signature.
 _SNIFF_BYTES = 512
@@ -237,7 +244,7 @@ def verify_upload(key: str) -> FileUploadResponse:
     Enabling quarantine→promote (see the design plan) closes that window.
     """
     if not key.startswith(UPLOAD_PREFIX):
-        raise UploadError("Upload key must be under the uploads/ prefix")
+        raise UploadError(f"Upload key must be under the {UPLOAD_PREFIX} prefix")
     try:
         validate_key(key)
     except FileKeyError as e:

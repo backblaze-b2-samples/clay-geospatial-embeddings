@@ -36,4 +36,6 @@ export const ACCEPTED_FILE_TYPES: Record<string, string[]> = {
   ],
   "video/quicktime": [".mov"],
   "video/webm": [".webm"],
+  // GeoTIFF imagery tiles — the primary ingest format for this app.
+  "image/tiff": [".tif", ".tiff"],
 };

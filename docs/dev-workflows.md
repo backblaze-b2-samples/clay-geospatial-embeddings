@@ -12,6 +12,8 @@ and the release process. Two companion docs carry the reference material:
 ## Commands
 - Agent docs health: `pnpm check:agent-docs`
 - Cold-start setup: `pnpm run setup`
+- Install the gated Clay + geospatial engine deps: `pnpm run setup:ml` (installs `services/api/requirements-ml.txt`; not run by setup/CI)
+- Seed synthetic GeoTIFF imagery into B2: `pnpm run seed` (needs `setup:ml` + B2 credentials)
 - Preflight environment check: `pnpm run doctor`
 - Wait for the running stack: `pnpm wait-ready`
 - API contract export: `pnpm contract:export`
@@ -26,7 +28,7 @@ and the release process. Two companion docs carry the reference material:
 - Frontend typecheck: `pnpm typecheck`
 - Frontend lint: `pnpm lint`
 - Backend lint: `pnpm lint:api`
-- E2E: `pnpm test:e2e` (run `pnpm --filter @vibe-coding-starter-kit/web exec playwright install chromium` once first)
+- E2E: `pnpm test:e2e` (run `pnpm --filter @clay-geospatial-embeddings/web exec playwright install chromium` once first)
 - App verification specs: `pnpm test:verify` (specs in the gitignored `apps/web/e2e/verify/`)
 
 What each gate checks, its prerequisites, and how to recover when one fails:
