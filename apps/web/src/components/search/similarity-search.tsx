@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Search as SearchIcon } from "lucide-react";
 import { toast } from "sonner";
 
@@ -25,6 +25,29 @@ const SENSORS: { value: SensorPreset; label: string }[] = [
   { value: "sentinel-2-l2a", label: "Sentinel-2 L2A (multispectral)" },
   { value: "naip-rgb", label: "NAIP RGB" },
 ];
+
+/**
+ * De-dupe hits by `tile_key`, keeping the first (best-scoring, since hits
+ * arrive sorted most-similar-first) occurrence per tile.
+ *
+ * The shared archive can hold more than one embedding for the same source
+ * tile (e.g. after re-running an Embedding Job), and every duplicate renders
+ * the identical `thumbnailUrl(tile_key)`. Rendering one <img> per raw hit then
+ * points several elements at the same URL at once, and those concurrent
+ * requests race and get cancelled (net::ERR_ABORTED) instead of painting —
+ * the failure mode the Imagery Library grid never hits, since it lists each
+ * tile once. A pure function keeps this testable without rendering a
+ * component — the `hits` memo in `SimilaritySearch` below is its only
+ * production caller.
+ */
+export function dedupeHitsByTileKey(hits: SearchHit[]): SearchHit[] {
+  const seen = new Set<string>();
+  return hits.filter((hit) => {
+    if (seen.has(hit.tile_key)) return false;
+    seen.add(hit.tile_key);
+    return true;
+  });
+}
 
 function HitCard({ hit }: { hit: SearchHit }) {
   const [failed, setFailed] = useState(false);
@@ -67,6 +90,11 @@ export function SimilaritySearch() {
   const params = useSearchParams();
   const { data: imagery = [] } = useLibrary();
   const search = useSearch();
+
+  const hits = useMemo(
+    () => (search.data ? dedupeHitsByTileKey(search.data.hits) : []),
+    [search.data]
+  );
 
   // Preselect from ?key= (deep link from the Imagery Library "Find similar").
   const [queryKey, setQueryKey] = useState<string>(() => params.get("key") ?? "");
@@ -152,10 +180,10 @@ export function SimilaritySearch() {
       {search.data && (
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            {search.data.hits.length} nearest of {search.data.index_size} embedded
+            {hits.length} nearest of {search.data.index_size} embedded
             tiles, most similar first.
           </p>
-          {search.data.hits.length === 0 ? (
+          {hits.length === 0 ? (
             <EmptyState
               icon={SearchIcon}
               title="No matches"
@@ -163,8 +191,8 @@ export function SimilaritySearch() {
             />
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {search.data.hits.map((hit) => (
-                <HitCard key={hit.embedding_key} hit={hit} />
+              {hits.map((hit) => (
+                <HitCard key={hit.tile_key} hit={hit} />
               ))}
             </div>
           )}

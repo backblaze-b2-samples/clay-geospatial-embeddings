@@ -26,23 +26,25 @@ the `.npy` embeddings in B2.
 
 ## Outputs
 - `SearchResponse` → `{ query_key, index_size, hits: [{ tile_key, embedding_key, score }] }` (cosine similarity, most similar first)
+- `hits` are **distinct other** scenes: the query tile itself is excluded and at most one hit is returned per source `tile_key`
 
 ## Flow
 - Embed the query tile with Clay on the autodetected device
 - Build a fresh usearch index over every `.npy` under `embeddings/` (loaded from B2)
-- Return the top-k, mapping each embedding back to its source tile via job records
+- Rank over the whole index, then **exclude the query tile itself** and **dedup by `tile_key`** (best-scoring embedding per source tile wins), returning the top-k distinct other scenes. Because every Embedding Job re-embeds the same imagery into the one shared archive, ranking raw would otherwise fill the top-k with the query tile and near-identical copies of it before any different scene appears.
 
 ## Edge Cases
 - No embeddings yet → 409 with "run an Embedding Job first"
 - ML stack missing → 503 with the install hint
 - Unreadable query tile → 400
+- The query tile and duplicate embeddings of the same source tile never appear in results (self-exclusion + per-`tile_key` dedup)
 
 ## UX States
 - Query form (tile selector + sensor + k) / Searching / Results grid with score bars / No matches
 
 ## Verification
 - Test files: `services/api/tests/test_library_search.py`
-- Required cases: actionable error when the archive has no embeddings
+- Required cases: actionable error when the archive has no embeddings; search excludes the query tile itself and dedups by `tile_key` (best-scoring embedding per source tile)
 - Focused verify command: `pnpm test:api`
 - Default pre-PR verify command: `pnpm verify`
 - Full local verify command: `pnpm verify:full` when E2E/live prerequisites apply

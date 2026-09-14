@@ -13,9 +13,13 @@
 #
 # Headline capability uses Clay's OWN model (never a substitute):
 #   https://github.com/Clay-foundation/model
-# If `claymodel` does not resolve cleanly from PyPI, install from source instead:
-#   pip install "git+https://github.com/Clay-foundation/model"
-claymodel>=1.5
+# The PyPI wheel for claymodel==1.5.0 is mis-packaged (it installs the module
+# files flat at the top of site-packages instead of under a `claymodel/`
+# package dir), so `import claymodel` never resolves from it. Install from the
+# source repo instead, which packages correctly. There is no `v1.5.0` git tag
+# upstream; `main` currently declares `version = "1.5.0"` in its pyproject.toml,
+# so it is the correct ref for this pin.
+claymodel @ git+https://github.com/Clay-foundation/model@main
 torch>=2.2,<2.9
 numpy>=1.26,<2.2
 rasterio>=1.3,<2

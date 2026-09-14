@@ -32,6 +32,7 @@ import type {
   ImageryItem,
   JobCreateRequest,
   JobRecord,
+  JobStatus,
   JobUpdateRequest,
   SearchByKeyRequest,
   SearchResponse,
@@ -199,11 +200,28 @@ export function useJobs({ enabled = true }: QueryGate = {}) {
   });
 }
 
+// How often to re-poll a job that is still working. Short enough that the badge,
+// tiles-embedded count, and duration feel live; the run itself finishes in ~25-35s.
+const JOB_POLL_INTERVAL_MS = 1500;
+
+/**
+ * Polling cadence for a job detail query: poll while the job is still working,
+ * stop once it reaches a terminal state. Making this a pure function keeps the
+ * "when do we stop polling" rule testable without rendering a component — the
+ * `useJob` refetchInterval below is its only production caller.
+ */
+export function jobPollInterval(status: JobStatus | undefined): number | false {
+  return status === "pending" || status === "running" ? JOB_POLL_INTERVAL_MS : false;
+}
+
 export function useJob(id: string | undefined, enabled = true) {
   return useQuery<JobRecord, ApiError>({
     queryKey: qk.job(id ?? ""),
     queryFn: () => getJob(id as string),
     enabled: enabled && !!id,
+    // Poll while pending/running so a mid-run reload converges to completion on
+    // its own and the header badge can't stay stale; stop once terminal.
+    refetchInterval: (query) => jobPollInterval(query.state.data?.status),
   });
 }
 

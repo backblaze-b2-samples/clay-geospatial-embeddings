@@ -46,6 +46,53 @@ def test_search_without_embeddings_is_actionable(monkeypatch):
     assert excinfo.value.status_code == 409
 
 
+class _FakeIndex:
+    """Stands in for a built usearch index: returns a pre-ranked hit list."""
+
+    def __init__(self, ranked: list[tuple[str, str, float]]):
+        self._ranked = ranked
+
+    @property
+    def size(self) -> int:
+        return len(self._ranked)
+
+    def query(self, vector, k):
+        return self._ranked[:k]
+
+
+def test_search_excludes_query_tile_and_dedups_by_tile_key(monkeypatch):
+    """Ranking must drop the query tile itself and keep one hit per source tile.
+
+    Every job re-embeds the same imagery into the shared archive, so the raw
+    ranked list is dominated by copies of the query tile and duplicate tiles.
+    """
+    query_tile = "imagery/a.tif"
+    ranked = [
+        ("embeddings/j1/a.npy", "imagery/a.tif", 1.0),  # self — must be excluded
+        ("embeddings/j2/a.npy", "imagery/a.tif", 0.99),  # self copy — excluded
+        ("embeddings/j1/b.npy", "imagery/b.tif", 0.90),  # other — best copy of b
+        ("embeddings/j2/b.npy", "imagery/b.tif", 0.85),  # other — dup of b, drop
+        ("embeddings/j1/c.npy", "imagery/c.tif", 0.80),  # other — distinct scene
+    ]
+    monkeypatch.setattr(search_svc, "list_embedding_keys", lambda *a, **k: ["x"])
+    monkeypatch.setattr(search_svc, "embedding_tile_map", lambda: {})
+    monkeypatch.setattr(search_svc, "_embed_query", lambda req: [0.0])
+    monkeypatch.setattr(search_svc, "build_index", lambda *a, **k: _FakeIndex(ranked))
+
+    resp = search_svc.search_by_key(SearchByKeyRequest(query_key=query_tile, k=6))
+
+    # Never returns the query tile itself...
+    assert all(hit.tile_key != query_tile for hit in resp.hits)
+    # ...and returns at most one hit per distinct source tile.
+    tile_keys = [hit.tile_key for hit in resp.hits]
+    assert tile_keys == ["imagery/b.tif", "imagery/c.tif"]
+    assert len(tile_keys) == len(set(tile_keys))
+    # The best-scoring embedding of a duplicated tile wins.
+    b_hit = next(h for h in resp.hits if h.tile_key == "imagery/b.tif")
+    assert b_hit.embedding_key == "embeddings/j1/b.npy"
+    assert b_hit.score == 0.9
+
+
 def test_get_preset_defaults():
     assert get_preset("sentinel-2-rgb").band_count == 3
     assert get_preset("sentinel-2-l2a").band_count == 10

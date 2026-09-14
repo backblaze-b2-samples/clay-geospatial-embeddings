@@ -8,6 +8,11 @@ import type { NextConfig } from "next";
 // without per-deployment tweaks.
 const nextConfig: NextConfig = {
   transpilePackages: ["@clay-geospatial-embeddings/shared"],
+  // Dev-only: Next 16's cross-origin guard 403s `_next/static/*` unless the dev
+  // origin is allow-listed. The app's own Playwright config serves it at
+  // `127.0.0.1` (to dodge macOS localhost→::1), so list both the IP and the
+  // hostname or React never hydrates and every click is silently dead.
+  allowedDevOrigins: ["127.0.0.1", "localhost"],
   images: {
     remotePatterns: [
       {

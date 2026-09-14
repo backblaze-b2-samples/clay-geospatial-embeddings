@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowLeft, Pencil, Play, Trash2 } from "lucide-react";
+import { ArrowLeft, Pencil, Play, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -61,6 +61,10 @@ export function JobDetail({ id }: { id: string }) {
   }
 
   const running = runJob.isPending || job.status === "running";
+  // Keep the badge consistent with the button/alert: while a run is in flight
+  // (or the polled status is running) show "Running" instead of a stale
+  // "Pending"; otherwise reflect the freshly-polled terminal status.
+  const displayStatus = running ? "running" : job.status;
 
   return (
     <div className="space-y-6">
@@ -74,7 +78,7 @@ export function JobDetail({ id }: { id: string }) {
           </Link>
           <div className="flex items-center gap-3">
             <h1 className="page-title">{job.name}</h1>
-            <JobStatusBadge status={job.status} />
+            <JobStatusBadge status={displayStatus} />
           </div>
           <p className="font-mono text-xs text-muted-foreground">{job.id}</p>
         </div>
@@ -206,10 +210,21 @@ export function JobDetail({ id }: { id: string }) {
 
       {job.embeddings.length > 0 && (
         <Card>
-          <CardHeader className="border-b border-border py-4 px-5">
+          <CardHeader className="flex flex-row items-center justify-between gap-4 border-b border-border py-4 px-5">
             <CardTitle className="card-title">
               Embeddings ({job.embeddings.length})
             </CardTitle>
+            {/* Chain to the goal's final stage: these embeddings now exist, so
+                offer a jump straight into Similarity Search, pre-selecting the
+                first tile via the same ?key= deep link the Imagery Library uses. */}
+            <Button asChild size="sm" variant="outline">
+              <Link
+                href={`/search?key=${encodeURIComponent(job.embeddings[0].tile_key)}`}
+              >
+                <Search className="h-3.5 w-3.5" />
+                Find similar scenes
+              </Link>
+            </Button>
           </CardHeader>
           <CardContent className="p-0">
             <Table>

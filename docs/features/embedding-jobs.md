@@ -45,8 +45,9 @@ database.
 
 ## UX States
 - Empty: "No embedding jobs yet" with a create prompt
-- Running: in-progress alert; Run/Edit/Delete disabled
+- Running: in-progress alert; Run/Edit/Delete disabled. The detail query polls (`useJob` `refetchInterval`, ~1.5s) while the job is `pending`/`running` and stops once terminal, so the badge and duration update live and a mid-run reload converges to completion on its own. `run_job` persists the record only at start (`tiles_embedded` = 0) and end, not per tile, so the tiles-embedded count jumps from 0 to its final value when the run finishes rather than counting up. The header badge derives from the live/polled status (shows "Running" while a run is in flight), so it can't contradict the button/alert.
 - Error/failed: the failure message is surfaced on the detail page
+- Succeeded (embeddings exist): the Embeddings card header offers a "Find similar scenes" action linking to `/search?key=<tile>` (pre-selects one of this job's tiles), chaining the goal's final stage
 
 ## Verification
 - Test files: `services/api/tests/test_jobs.py`

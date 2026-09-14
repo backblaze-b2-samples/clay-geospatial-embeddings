@@ -14,6 +14,7 @@ fallback and also retry a failed MPS/CUDA embed on CPU (see service/jobs.py).
 import logging
 import os
 import threading
+from pathlib import Path
 
 # Must be set before torch is ever imported so unsupported MPS ops silently run
 # on CPU instead of raising. Harmless on non-MPS hosts.
@@ -28,6 +29,11 @@ logger = logging.getLogger(__name__)
 CLAY_HF_REPO = "made-with-clay/Clay"
 CLAY_CKPT = "v1.5/clay-v1.5.ckpt"
 CLAY_MODEL_SIZE = "large"
+
+# Clay's own configs/metadata.yaml, vendored next to this file so it resolves
+# regardless of process CWD (ClayMAEModule defaults to a repo-relative path
+# that isn't installed with the `claymodel` package).
+_CLAY_METADATA_PATH = str(Path(__file__).parent / "clay_metadata.yaml")
 
 _model_lock = threading.Lock()
 # device -> loaded model. Cached so a multi-tile run loads Clay once.
@@ -108,6 +114,7 @@ def _load_model(device: str):
                     model_size=CLAY_MODEL_SIZE,
                     mask_ratio=0.0,
                     shuffle=False,
+                    metadata_path=_CLAY_METADATA_PATH,
                 )
             finally:
                 torch.load = orig_load

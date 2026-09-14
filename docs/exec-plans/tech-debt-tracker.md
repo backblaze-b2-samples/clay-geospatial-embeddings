@@ -75,3 +75,13 @@ Low-severity polish, left for a follow-up; none blocks the core flow.
 | Custom `FileNotFoundError` shadowed the built-in | Renamed to `FileNotFoundServiceError` |
 | Dropzone accepted any file type client-side | `accept` allow-list mirroring backend `ALLOWED_TYPES` (tested for drift) |
 | No test harness for feature specs | pytest suite across upload, files, activity, errors, validation, rate limit, pagination |
+
+## 2026-09-14 — verify (Clay geospatial embeddings marquee verify)
+
+Nitpicks and non-blocking observations surfaced by the 3-lens UX verify (all
+below demo-scale-acceptable; logged, not looped on):
+
+- `/jobs/<id>` (running) — the only in-progress affordance for a running job is a ~1.5px `animate-pulse` dot inside the status badge; no clear spinner / `[role=progressbar]` → a first-time user can miss that work is active (Lens B, nitpick).
+- `/jobs/<id>` — the "Sensor" field renders the raw enum (`sentinel-2-rgb` / `naip-rgb`) instead of the create-form's human label ("Sentinel-2 RGB" / "NAIP RGB"); same value, unformatted (Lens C, nitpick).
+- `/library`, `/search` — the synthetic seed tiles render as flat, low-contrast gray thumbnails (low visual variance in the demo GeoTIFFs, not a render bug — thumbnails decode fine); affects only how convincing the demo looks (Lens C, nitpick).
+- `POST /search` scalability — search rebuilds the usearch k-NN index by loading every embedding from B2 on each query (O(N) `get_object`), so latency scales with archive size: sub-second at demo scale (~9 tiles) but ~88s once 150+ embeddings accumulate. Not a blocker at demo scale. Proposed: cache/persist the usearch index and invalidate on new embeddings (search feedback spinner already present).

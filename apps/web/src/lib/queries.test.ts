@@ -1,6 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it } from "vitest";
-import { dropDeletedFileFromCache, qk } from "@/lib/queries";
+import { dropDeletedFileFromCache, jobPollInterval, qk } from "@/lib/queries";
 import type { FileMetadata } from "@clay-geospatial-embeddings/shared";
 
 function file(key: string): FileMetadata {
@@ -82,5 +82,21 @@ describe("dropDeletedFileFromCache", () => {
       dropDeletedFileFromCache(qc, "uploads/missing.txt"),
     ).not.toThrow();
     expect(qc.getQueryData(qk.files())).toBeUndefined();
+  });
+});
+
+describe("jobPollInterval", () => {
+  it("polls while the job is still working", () => {
+    expect(jobPollInterval("pending")).toBeGreaterThan(0);
+    expect(jobPollInterval("running")).toBeGreaterThan(0);
+  });
+
+  it("stops polling once the job reaches a terminal state", () => {
+    expect(jobPollInterval("succeeded")).toBe(false);
+    expect(jobPollInterval("failed")).toBe(false);
+  });
+
+  it("does not poll when the status is unknown (no data yet)", () => {
+    expect(jobPollInterval(undefined)).toBe(false);
   });
 });
