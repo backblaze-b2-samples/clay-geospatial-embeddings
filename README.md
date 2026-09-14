@@ -20,6 +20,28 @@ change detection, land-cover classification, and scene retrieval.
 - **Full-bucket file browser + direct-to-B2 upload** — the reusable B2 scaffolding, kept from the starter.
 - FastAPI backend with a strict layered architecture, structural tests, and agent-optimized docs.
 
+## What it looks like
+
+**Dashboard** — B2 archive overview with object, storage, and ingest stats, a 7-day upload-activity chart, and recent embedding jobs.
+
+![Dashboard with archive stats, upload-activity chart, and recent jobs](docs/images/dashboard.png)
+
+**Embedding Jobs** — every Clay embedding job listed with its status, sensor preset, tile count, and creation time.
+
+![Embedding Jobs list showing status, sensor, and tile counts](docs/images/embedding-jobs.png)
+
+**Job detail** — one job's run summary, full configuration, and the per-tile embedding artifacts written to B2.
+
+![Job detail showing configuration and per-tile embeddings](docs/images/job-detail.png)
+
+**Imagery Library** — a scoped GeoTIFF gallery over `imagery/` with PNG thumbnails and parsed geospatial metadata (CRS, bounds, bands, GSD).
+
+![Imagery Library gallery of GeoTIFF tiles with geospatial metadata](docs/images/imagery-library.png)
+
+**Similarity Search** — pick a tile, embed it with Clay, and retrieve the nearest scenes from the B2 embedding index, ranked by similarity score.
+
+![Similarity Search results ranked by similarity score](docs/images/similarity-search.png)
+
 ## Quick Start
 
 You need: Node.js >= 20, pnpm >= 9, Python >= 3.12, and a free
