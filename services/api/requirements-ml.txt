@@ -23,5 +23,5 @@ claymodel @ git+https://github.com/Clay-foundation/model@main
 torch>=2.2,<2.9
 numpy>=1.26,<2.2
 rasterio>=1.3,<2
-usearch>=2.12,<3
+usearch>=2.26.2,<3
 huggingface_hub>=0.24,<1
